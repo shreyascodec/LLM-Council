@@ -1,0 +1,7 @@
+# Minimal, intentionally small dependency set.
+# Rate limiting, backoff, hash-chaining and JSON repair are implemented in-repo
+# (see council/) rather than pulled from a framework - clarity over magic.
+requests>=2.31,<3
+PyYAML>=6.0,<7
+jsonschema>=4.20,<5
+python-dotenv>=1.0,<2

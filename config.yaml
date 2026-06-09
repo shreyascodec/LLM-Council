@@ -1,0 +1,104 @@
+# LLM Council configuration. Everything that shapes a decision lives here so a
+# config_hash can be embedded in every Decision Object. The free-model catalog is
+# volatile, so each role pins an id plus fallbacks tried in order.
+
+provider:
+  base_url: "https://openrouter.ai/api/v1"
+  request_timeout_s: 90
+  # Request strict JSON; the client retries without it if a model rejects it.
+  json_mode: true
+
+# Generators: three distinct families (running one model 3x is not a council).
+# GLM stands in for DeepSeek, which had no ":free" id when this was pinned.
+generators:
+  - id: "meta-llama/llama-3.3-70b-instruct:free"
+    family: "llama"
+    fallbacks:
+      - "nousresearch/hermes-3-llama-3.1-405b:free"
+      - "meta-llama/llama-3.2-3b-instruct:free"
+      - "openrouter/free"
+  - id: "qwen/qwen3-next-80b-a3b-instruct:free"
+    family: "qwen"
+    fallbacks:
+      - "qwen/qwen3-coder:free"
+      - "openrouter/free"
+  - id: "z-ai/glm-4.5-air:free"
+    family: "glm"
+    fallbacks:
+      - "openai/gpt-oss-20b:free"
+      - "openrouter/free"
+
+# Judges: families distinct from each other and from the generators (a judge
+# sharing a family with a generator tends to over-rate its sibling).
+judges:
+  - id: "google/gemma-4-31b-it:free"
+    family: "gemma"
+    fallbacks:
+      - "google/gemma-4-26b-a4b-it:free"
+      - "openrouter/free"
+  - id: "nvidia/nemotron-3-nano-30b-a3b:free"
+    family: "nemotron"
+    fallbacks:
+      - "nvidia/nemotron-nano-9b-v2:free"
+      - "openrouter/free"
+
+sampling:
+  # Lower temperature on judges for stabler scoring; higher on generators for diversity.
+  generator_temperature: 0.7
+  judge_temperature: 0.1
+  max_tokens: 1024
+  # Judges get more headroom; some models emit reasoning before the JSON scores.
+  judge_max_tokens: 2048
+  # Forwarded when supported; free models are often non-deterministic regardless.
+  seed: 7
+
+rate_limit:
+  requests_per_minute: 18      # headroom under the ~20 rpm ceiling
+  requests_per_day: 190        # headroom under the ~200 rpd ceiling
+  max_retries: 2
+  backoff_base_s: 1.5          # exponential: base * 2**attempt (+ jitter)
+  backoff_max_s: 20.0
+
+# Judging rubric: each candidate scored 0-5 per criterion; weights sum to 1.0.
+rubric:
+  criteria:
+    - name: "correctness"
+      weight: 0.40
+      description: "Are the claims accurate and free of fabrication?"
+    - name: "relevance"
+      weight: 0.20
+      description: "Does it directly answer the question that was asked?"
+    - name: "completeness"
+      weight: 0.15
+      description: "Are the important parts covered without padding?"
+    - name: "reasoning"
+      weight: 0.15
+      description: "Is the logic sound and the conclusion supported?"
+    - name: "calibration"
+      weight: 0.10
+      description: "Does it express appropriate uncertainty instead of overclaiming?"
+  score_min: 0
+  score_max: 5
+
+# Confidence weights: weighted sum of the four signals, clamped to [0,1] and
+# reduced by high_risk_penalty if any high-severity risk is present.
+confidence:
+  weights:
+    inter_judge_agreement: 0.35
+    score_margin: 0.30
+    agent_agreement: 0.15
+    verification_pass_rate: 0.20
+  high_risk_penalty: 0.25      # subtracted once if any high-severity risk is present
+
+# Decision policy: tie-break, abstention, escalation.
+policy:
+  min_usable_candidates: 2     # fewer than this -> no_decision
+  tie_margin: 0.07             # margin <= this AND judges disagree -> tie -> no_decision
+  escalate_below_confidence: 0.40   # decided below this is flagged for human review
+
+audit:
+  log_path: "audit/audit_log.jsonl"
+
+citations:
+  verify_timeout_s: 8
+  max_urls_per_answer: 6

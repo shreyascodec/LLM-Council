@@ -1,0 +1,18 @@
+# Secrets — NEVER commit a real key
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Runtime artifacts (samples are committed separately)
+audit/audit_log.jsonl
+evals/reports/eval_report.json
+
+# OS
+.DS_Store
+Thumbs.db

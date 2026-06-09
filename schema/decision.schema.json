@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aonxi.example/schema/decision.schema.json",
+  "title": "LLM Council Decision Object",
+  "description": "The single, machine-readable contract emitted for every question. A refused or no_decision result is still a fully valid Decision Object.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decision_id",
+    "schema_version",
+    "created_at",
+    "status",
+    "question",
+    "winning_answer",
+    "runner_up_answer",
+    "confidence",
+    "risks",
+    "citations",
+    "provenance",
+    "audit_ref"
+  ],
+  "properties": {
+    "decision_id": { "type": "string", "format": "uuid" },
+    "schema_version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "status": { "enum": ["decided", "refused", "no_decision"] },
+    "question": { "type": "string" },
+    "winning_answer": { "type": ["string", "null"] },
+    "runner_up_answer": { "type": ["string", "null"] },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "method", "signals"],
+      "properties": {
+        "score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "method": { "type": "string" },
+        "signals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "inter_judge_agreement",
+            "score_margin",
+            "agent_agreement",
+            "verification_pass_rate"
+          ],
+          "properties": {
+            "inter_judge_agreement": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "score_margin": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "agent_agreement": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+            "verification_pass_rate": { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+          }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "severity", "detail"],
+        "properties": {
+          "type": { "enum": ["factual", "safety", "ambiguity", "data_gap"] },
+          "severity": { "enum": ["low", "med", "high"] },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["claim", "source", "status"],
+        "properties": {
+          "claim": { "type": "string" },
+          "source": { "type": "string" },
+          "status": { "enum": ["verified", "unverified", "failed"] },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generators", "judges", "config_hash", "cost_usd", "total_latency_ms"],
+      "properties": {
+        "generators": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["model_id", "family", "latency_ms", "tokens", "ok"],
+            "properties": {
+              "model_id": { "type": "string" },
+              "family": { "type": "string" },
+              "latency_ms": { "type": "number", "minimum": 0 },
+              "tokens": { "type": "integer", "minimum": 0 },
+              "ok": { "type": "boolean" },
+              "error": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "judges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["model_id", "family", "rubric_scores", "ok"],
+            "properties": {
+              "model_id": { "type": "string" },
+              "family": { "type": "string" },
+              "rubric_scores": { "type": "object" },
+              "smuggled_answer_discarded": { "type": "boolean" },
+              "ok": { "type": "boolean" },
+              "error": { "type": ["string", "null"] }
+            }
+          }
+        },
+        "config_hash": { "type": "string" },
+        "cost_usd": { "type": "number", "minimum": 0.0 },
+        "total_latency_ms": { "type": "number", "minimum": 0 }
+      }
+    },
+    "audit_ref": { "type": "string" }
+  }
+}
